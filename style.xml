@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE Map [
+<!ENTITY longlat "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs">
+]>
+<Map background-color="white" srs="&longlat;">
+
+  <Style name="My Style">
+    <Rule>
+      <LineSymbolizer>
+        <CssParameter name="stroke">rgb(50%,50%,50%)</CssParameter>
+        <CssParameter name="stroke-width">0.1</CssParameter>
+    </LineSymbolizer>
+    <PointSymbolizer>
+    </PointSymbolizer>
+    </Rule>
+  </Style>
+
+  <Layer name="world" srs="&longlat;">
+    <StyleName>My Style</StyleName>
+    <Datasource>
+      <Parameter name="type">ogr</Parameter>
+      <Parameter name="string">couchdb:http://localhost:5984/</Parameter>
+      <Parameter name="layer">osm</Parameter>
+    </Datasource>
+  </Layer>
+
+</Map>

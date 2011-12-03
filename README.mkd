@@ -1,0 +1,158 @@
+This is a little project demonstrating how to render maps with mapnik and
+geocouch.
+
+# Install
+
+## GDAL
+
+Read the documenation of the driver: http://www.gdal.org/ogr/drv_couchdb.html
+
+First of all you should install gdal. Make sure the couchdb driver is part of
+the source code. I'm using the latest driver from the gdal svn:
+
+http://svn.osgeo.org/gdal
+
+Make sure you installed all dependencies (curl library) before you do a:
+
+    ./configure && make && sudo make install
+
+## Mapnik
+
+Now let's install the latest mapnik code with python support. Clone the
+repository form github and do a:
+
+    ./configure && make && sudo make install
+
+## Geocouch
+
+Installing geocouch is a bit tricky but possible. In order to get a working
+setup you have to install couchdb 1.1.x as well as the geocouch branch for
+1.1.x. Let's clone couchdb and switch to the right branch:
+
+    git clone http://git-wip-us.apache.org/repos/asf/couchdb.git
+    git checkout 1.1.x
+
+Now let's build couchdb (again make sure to install the dependencies):
+
+    ./bootstrap && ./configure && make && sudo make install
+
+Cool. Now let's install geocouch:
+
+    git clone https://github.com/couchbase/geocouch.git
+    git checkout couchdb1.1.x
+
+Follow the instructions in the README of geocouch to build geocouch and install
+it.
+
+Mot important steps:
+
+Export the couchdb source directory:
+
+    export COUCH_SRC=<vanilla-couch>/src/couchdb
+
+Use the make file to build geocouch:
+
+    make
+
+Maybe you want to test the geocouch code:
+
+    make runtests
+
+Copy the geocouch.ini file to the appropriate directory:
+
+    cp <geocouch>/etc/couchdb/local.d/geocouch.ini <vanilla-couch>/etc/couchdb/local.d/
+
+Maybe you want to install the futon tests to check your setup...
+
+Anyway, start couchdb with something like:
+
+    sudo ERL_FLAGS="-pa /tmp/geocouch/build" /usr/local/bin/couchdb
+
+## imposm
+
+For the import of osm data we use geocouch branch of imposm. Make sure you have
+mercurial installed.
+
+    hg clone https://bitbucket.org/olt/imposm
+    cd imposm
+    hg checkout geocouch
+
+Maybe you want to create a virtual environment for imposm.
+
+    virtualenv env
+    . ./env/bin/activate
+
+Install imposm into your virtualenv.
+
+    python setup.py install
+
+
+# Import data
+
+First of all create a new couchdb database:
+
+    curl -X PUT http://localhost:5984/osm
+
+Use imposm to parse an osm file:
+
+    imposm --read berlin.osm.pbf
+
+Now use the default imposm mapping which ships with this tutorial to import some
+data.
+
+    imposm --write -d osm -m defaultmapping.py
+
+This should result in some data in your couchdb database.
+
+
+# Add metadata files and spatial views.
+
+Open `localhost:5984/_utils` in your browser. Move to your database and add a
+design document. Source for the metadata design document should look like this:
+
+    {
+       "_id": "_design/ogr_metadata",
+       "srs": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS
+    84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.01745329251994328,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]",
+       "geomtype": "GEOMETRY",
+       "geojson_documents": true,
+       "extent": {
+           "validity_update_seq": 0,
+           "bbox": [
+               -180
+               -90,
+               180,
+               90
+           ]
+       },
+       "fields": [
+       ]
+    }
+
+Add a spatial view to the design documents to enable spatial requests:
+
+    {
+       "_id": "_design/ogr_spatial",
+       "spatial": {
+           "spatial": "function(doc) {if (doc.geometry){emit(doc.geometry,
+    null);}};"
+       }
+    }
+
+# Render a map
+
+Use the provided `render.py` script to render an tile. Maybe you want to adjust
+the extent which we render.
+
+## Style file
+
+Take a look at the style file! Most important part:
+
+    <Datasource>
+      <Parameter name="type">ogr</Parameter>
+      <Parameter name="string">couchdb:http://localhost:5984/</Parameter>
+      <Parameter name="layer">osm</Parameter>
+    </Datasource>
+
+String is the hostname of your couchdb instance and layer is your couchdb
+database.
